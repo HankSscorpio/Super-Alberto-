@@ -1,75 +1,69 @@
 import pygame
 import sys
-import os
 
-pygame.init()
+def menu_principal(ANCHO, ALTO):
+    VENTANA = pygame.display.get_surface()
 
-# Configuración
-ANCHO, ALTO = 800, 600
-VENTANA = pygame.display.set_mode((ANCHO, ALTO))
-pygame.display.set_caption("Super Alberto")
+    # Cargar fondo de tarde
+    fondo = pygame.image.load("fondos/tarde.png").convert()
+    fondo = pygame.transform.scale(fondo, (ANCHO, ALTO))
 
-# Colores
-NEGRO = (0, 0, 0)
-BLANCO = (255, 255, 255)
-AMARILLO = (255, 255, 0)
-GRIS = (100, 100, 100)
+    # Cargar y escalar imagen del título
+    titulo_original = pygame.image.load("assets/titulo.png").convert_alpha()
 
-# Fuente
-fuente = pygame.font.SysFont("arial", 50)
-fuente_chica = pygame.font.SysFont("arial", 30)
+    # Escalado manteniendo proporción con ancho máximo de 500
+    max_ancho = 500
+    escala = max_ancho / titulo_original.get_width()
+    nuevo_ancho = int(titulo_original.get_width() * escala)
+    nuevo_alto = int(titulo_original.get_height() * escala)
+    titulo = pygame.transform.scale(titulo_original, (nuevo_ancho, nuevo_alto))
+    
+    # CENTRAR y BAJAR el título
+    titulo_rect = titulo.get_rect(center=(ANCHO // 2, ALTO // 4))
 
-clock = pygame.time.Clock()
+    # Botones centrados
+    boton_ancho, boton_alto = 200, 50
+    espacio_vertical = 20  # espacio entre botones
 
-# Cargar imagen de fondo
-ruta_fondo = os.path.join("fondos", "dia.png")
-fondo = pygame.image.load(ruta_fondo)
-fondo= pygame.transform.scale(fondo, (ANCHO, ALTO))
+    jugar_rect = pygame.Rect(0, 0, boton_ancho, boton_alto)
+    salir_rect = pygame.Rect(0, 0, boton_ancho, boton_alto)
 
+    # Colocarlos debajo del título con espaciado
+    jugar_rect.center = (ANCHO // 2, titulo_rect.bottom + 80)
+    salir_rect.center = (ANCHO // 2, jugar_rect.bottom + boton_alto + espacio_vertical)
 
+    # Colores
+    BLANCO = (255, 255, 255)
+    GRIS = (50, 50, 50)
 
+    fuente = pygame.font.SysFont("arial", 30)
+    clock = pygame.time.Clock()
 
-# Función para dibujar texto centrado
-def dibujar_texto(texto, fuente, color, superficie, x, y):
-    render = fuente.render(texto, True, color)
-    rect = render.get_rect()
-    rect.center = (x, y)
-    superficie.blit(render, rect)
-
-# Menú principal
-def menu_principal():
     while True:
-        # Dibujar fondo
         VENTANA.blit(fondo, (0, 0))
-        
 
-        # Título
-        dibujar_texto("Super Alberto", fuente, AMARILLO, VENTANA, ANCHO // 2, 150)
-
-        # Botones
-        mouse = pygame.mouse.get_pos()
-        click = pygame.mouse.get_pressed()
-
-        jugar_rect = pygame.Rect(300, 250, 200, 50)
-        salir_rect = pygame.Rect(300, 330, 200, 50)
+        # Dibujar título
+        VENTANA.blit(titulo, titulo_rect)
 
         # Dibujar botones
-        pygame.draw.rect(VENTANA, GRIS, jugar_rect)
-        pygame.draw.rect(VENTANA, GRIS, salir_rect)
+        pygame.draw.rect(VENTANA, GRIS, jugar_rect, border_radius=10)
+        pygame.draw.rect(VENTANA, GRIS, salir_rect, border_radius=10)
 
-        dibujar_texto("JUGAR", fuente_chica, BLANCO, VENTANA, 400, 275)
-        dibujar_texto("SALIR", fuente_chica, BLANCO, VENTANA, 400, 355)
+        texto_jugar = fuente.render("JUGAR", True, BLANCO)
+        texto_salir = fuente.render("SALIR", True, BLANCO)
+
+        VENTANA.blit(texto_jugar, texto_jugar.get_rect(center=jugar_rect.center))
+        VENTANA.blit(texto_salir, texto_salir.get_rect(center=salir_rect.center))
 
         # Eventos
         for evento in pygame.event.get():
             if evento.type == pygame.QUIT:
                 pygame.quit()
                 sys.exit()
-
             if evento.type == pygame.MOUSEBUTTONDOWN:
-                if jugar_rect.collidepoint(mouse):
-                    return  # Salir del menú y entrar al juego
-                if salir_rect.collidepoint(mouse):
+                if jugar_rect.collidepoint(pygame.mouse.get_pos()):
+                    return
+                if salir_rect.collidepoint(pygame.mouse.get_pos()):
                     pygame.quit()
                     sys.exit()
 

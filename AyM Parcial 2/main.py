@@ -1,79 +1,45 @@
 import pygame
 import sys
 from menu_principal import menu_principal
+from jugador import Jugador
+from niveles import niveles, monedas, cargar_fondos, get_fondo_por_nivel
 
+# Inicialización
 pygame.init()
-menu_principal()
-
-# Configuración de pantalla
-ANCHO, ALTO = 800, 600
+ANCHO, ALTO = 900, 675
 VENTANA = pygame.display.set_mode((ANCHO, ALTO))
 pygame.display.set_caption("Super Alberto")
+menu_principal(ANCHO, ALTO)
 
 # Colores
 NEGRO = (0, 0, 0)
 AZUL = (0, 0, 255)
 GRIS = (100, 100, 100)
+VERDE_CLARO = (144, 238, 144)
 
 clock = pygame.time.Clock()
 FPS = 60
 
-# Fondo para el nivel 0
-fondo_dia = pygame.image.load("fondos/dia.png").convert()
-fondo_dia = pygame.transform.scale(fondo_dia, (ANCHO, ALTO))
+# Fondos
+fondos = cargar_fondos(ANCHO, ALTO)
 
+# Imagen moneda
+imagen_moneda = pygame.image.load("assets/moneda.png").convert_alpha()
+imagen_moneda = pygame.transform.scale(imagen_moneda, (20, 20))
+
+# Sonidos
+pygame.mixer.music.load("sonidos/musica.mp3")
+pygame.mixer.music.set_volume(0.3)
+pygame.mixer.music.play(-1)
+
+sonido_moneda = pygame.mixer.Sound("sonidos/moneda.mp3")
+sonido_moneda.set_volume(0.8)
 
 # Jugador
-jugador_ancho = 32
-jugador_alto = 32
-jugador_x = 100
-jugador_y = ALTO - jugador_alto - 50
-velocidad_x = 5
-velocidad_y = 0
-gravedad = 0.8
-salto = -15
-en_suelo = False
+jugador = Jugador(100, ALTO - 82)
 
-# Pantallas
-
-niveles = [
-    [  # Nivel 0
-        pygame.Rect(0, ALTO - 20, ANCHO, 20), 
-        pygame.Rect(150, 500, 100, 20),
-        pygame.Rect(100, 400, 100, 20),
-        pygame.Rect(300, 450, 100, 20),
-        pygame.Rect(500, 350, 120, 20),
-        pygame.Rect(650, 280, 100, 20),  
-    ],
-    [  # Nivel 1
-        pygame.Rect(0, ALTO - 20, ANCHO, 20),
-        pygame.Rect(200, 520, 120, 20),
-        pygame.Rect(400, 520, 100, 20),
-        pygame.Rect(300, 400, 120, 20),
-        pygame.Rect(500, 320, 80, 20),
-        pygame.Rect(200, 250, 100, 20),  
-    ],
-    [  # Nivel 2
-        pygame.Rect(0, ALTO - 20, ANCHO, 20),
-        pygame.Rect(100, 500, 80, 20),
-        pygame.Rect(250, 450, 100, 20),
-        pygame.Rect(150, 350, 100, 20),
-        pygame.Rect(350, 300, 100, 20),
-        pygame.Rect(600, 380, 100, 20),  
-        pygame.Rect(620, 250, 100, 20),  
-    ],
-]
-
-# Monedas por pantalla (coordenadas x, y, ancho, alto)
-monedas = [
-    [pygame.Rect(520, 300, 20, 20)],  # Nivel 0
-    [pygame.Rect(620, 260, 20, 20)],  # Nivel 1
-    [pygame.Rect(620, 240, 20, 20)],  # Nivel 2
-]
-
+# Estado del juego
 pantalla_actual = 0
-
-# Pared invisible 
 pared_invisible = pygame.Rect(0, 0, 1, ALTO)
 
 # Bucle principal
@@ -86,60 +52,55 @@ while True:
             sys.exit()
 
     teclas = pygame.key.get_pressed()
-    if teclas[pygame.K_LEFT]:
-        jugador_x -= velocidad_x
-    if teclas[pygame.K_RIGHT]:
-        jugador_x += velocidad_x
-    if teclas[pygame.K_SPACE] and en_suelo:
-        velocidad_y = salto
-        en_suelo = False
+    jugador.mover(teclas)
 
-    # Pared invisible solo en pantalla 0
-    if pantalla_actual == 0 and jugador_x < pared_invisible.right:
-        jugador_x = pared_invisible.right
+    # Límite izquierdo en nivel 0
+    if pantalla_actual == 0 and jugador.rect.left < pared_invisible.right:
+        jugador.rect.left = pared_invisible.right
 
-    # Cambio de pantalla hacia la derecha
-    if jugador_x > ANCHO:
+    # Cambio de pantalla
+    if jugador.rect.right > ANCHO:
         if pantalla_actual < len(niveles) - 1:
             pantalla_actual += 1
-            jugador_x = 0  
-
-    # Cambio de pantalla hacia la izquierda
-    if jugador_x < 0:
+            jugador.rect.left = 0
+    elif jugador.rect.left < 0:
         if pantalla_actual > 0:
             pantalla_actual -= 1
-            jugador_x = ANCHO - jugador_ancho  
+            jugador.rect.right = ANCHO
 
-    # Gravedad
-    velocidad_y += gravedad
-    jugador_y += velocidad_y
+    jugador.aplicar_gravedad()
+    jugador.verificar_colisiones(niveles[pantalla_actual])
 
-    # Rectángulo del jugador
-    
-    jugador_rect = pygame.Rect(jugador_x, jugador_y, jugador_ancho, jugador_alto)
+    # Fondo
+    fondo_actual = get_fondo_por_nivel(pantalla_actual, fondos)
+    VENTANA.blit(fondo_actual, (0, 0))
 
-    # Colisiones
-    en_suelo = False
-    for plataforma in niveles[pantalla_actual]:
-        if jugador_rect.colliderect(plataforma):
-            if velocidad_y > 0:
-                jugador_y = plataforma.top - jugador_alto
-                velocidad_y = 0
-            en_suelo = True
-            jugador_rect = pygame.Rect(jugador_x, jugador_y, jugador_ancho, jugador_alto)
+    # Recolección de monedas
+    monedas_nivel = monedas[pantalla_actual]
+    for moneda in monedas_nivel[:]:
+        if jugador.rect.colliderect(moneda):
+            monedas_nivel.remove(moneda)
+            sonido_moneda.play()
 
-    # Dibujar fondo
-    if pantalla_actual in [0, 1, 2]:
-        VENTANA.blit(fondo_dia, (0, 0))
-    else:
-        VENTANA.fill(NEGRO)
-
+    # Dibujar monedas
     for moneda in monedas[pantalla_actual]:
-        pygame.draw.circle(VENTANA, (255, 215, 0), moneda.center, 10)
+        VENTANA.blit(imagen_moneda, moneda)
 
-    
-    pygame.draw.rect(VENTANA, AZUL, jugador_rect)
+    # Dibujar jugador
+    jugador.dibujar(VENTANA)
+
+    # Dibujar plataformas
     for plataforma in niveles[pantalla_actual]:
-        pygame.draw.rect(VENTANA, GRIS, plataforma)
+        if plataforma.top == ALTO - 20:
+            pygame.draw.rect(VENTANA, VERDE_CLARO, plataforma)
+        else:
+            pygame.draw.rect(VENTANA, GRIS, plataforma)
+
+    # Ganaste
+    if pantalla_actual == len(niveles) - 1:
+        fuente = pygame.font.SysFont("arial", 60, bold=True)
+        texto = fuente.render("¡GANASTE!", True, (255, 255, 255))
+        rect = texto.get_rect(center=(ANCHO // 2, ALTO // 2))
+        VENTANA.blit(texto, rect)
 
     pygame.display.flip()
