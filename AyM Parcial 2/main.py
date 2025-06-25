@@ -2,9 +2,10 @@ import pygame
 import sys
 from menu_principal import menu_principal
 from jugador import Jugador
-from niveles import niveles, monedas, cargar_fondos, get_fondo_por_nivel
+from niveles import niveles, monedas, cargar_fondos, get_fondo_por_nivel, avanzar_nivel
+from puntos import guardar_puntaje, obtener_top_3
 
-# Inicialización
+# Inicializar
 pygame.init()
 ANCHO, ALTO = 900, 675
 VENTANA = pygame.display.set_mode((ANCHO, ALTO))
@@ -38,7 +39,34 @@ sonido_moneda.set_volume(0.8)
 # Jugador
 jugador = Jugador(100, ALTO - 82)
 
-# Estado del juego
+# Nombre del jugador
+fuente_nombre = pygame.font.SysFont("arial", 32)
+nombre_jugador = ""
+escribiendo = True
+
+# Ingreso del nombre antes de iniciar
+while escribiendo:
+    VENTANA.fill((0, 0, 0))
+    texto = fuente_nombre.render("Ingresá tu nombre y presioná ENTER:", True, (255, 255, 255))
+    nombre_surface = fuente_nombre.render(nombre_jugador, True, (255, 255, 0))
+    VENTANA.blit(texto, (ANCHO // 2 - texto.get_width() // 2, 200))
+    VENTANA.blit(nombre_surface, (ANCHO // 2 - nombre_surface.get_width() // 2, 260))
+    pygame.display.flip()
+
+    for evento in pygame.event.get():
+        if evento.type == pygame.QUIT:
+            pygame.quit()
+            sys.exit()
+        elif evento.type == pygame.KEYDOWN:
+            if evento.key == pygame.K_RETURN and nombre_jugador:
+                escribiendo = False
+            elif evento.key == pygame.K_BACKSPACE:
+                nombre_jugador = nombre_jugador[:-1]
+            elif len(nombre_jugador) < 12 and evento.unicode.isprintable():
+                nombre_jugador += evento.unicode
+
+# Puntaje inicial
+puntaje = 0
 pantalla_actual = 0
 pared_invisible = pygame.Rect(0, 0, 1, ALTO)
 
@@ -58,18 +86,14 @@ while True:
     if pantalla_actual == 0 and jugador.rect.left < pared_invisible.right:
         jugador.rect.left = pared_invisible.right
 
-    # Cambio de pantalla
-    if jugador.rect.right > ANCHO:
-        if pantalla_actual < len(niveles) - 1:
-            pantalla_actual += 1
-            jugador.rect.left = 0
-    elif jugador.rect.left < 0:
-        if pantalla_actual > 0:
-            pantalla_actual -= 1
-            jugador.rect.right = ANCHO
-
+    # Verificar gravedad y colisiones
     jugador.aplicar_gravedad()
     jugador.verificar_colisiones(niveles[pantalla_actual])
+
+    # Avanzar nivel o volver al menú si terminó
+    pantalla_actual, puntaje = avanzar_nivel(
+        jugador, pantalla_actual, ANCHO, ALTO, monedas, nombre_jugador, puntaje, VENTANA
+    )
 
     # Fondo
     fondo_actual = get_fondo_por_nivel(pantalla_actual, fondos)
@@ -81,6 +105,7 @@ while True:
         if jugador.rect.colliderect(moneda):
             monedas_nivel.remove(moneda)
             sonido_moneda.play()
+            puntaje += 10
 
     # Dibujar monedas
     for moneda in monedas[pantalla_actual]:
@@ -96,11 +121,5 @@ while True:
         else:
             pygame.draw.rect(VENTANA, GRIS, plataforma)
 
-    # Ganaste
-    if pantalla_actual == len(niveles) - 1:
-        fuente = pygame.font.SysFont("arial", 60, bold=True)
-        texto = fuente.render("¡GANASTE!", True, (255, 255, 255))
-        rect = texto.get_rect(center=(ANCHO // 2, ALTO // 2))
-        VENTANA.blit(texto, rect)
-
     pygame.display.flip()
+    
